@@ -1,13 +1,15 @@
-package internal
+package api
 
 import (
 	"encoding/json"
 	"io"
 	"net/http"
+
+	"github.com/Akstrov/PokedexCli/internal/pokecashe"
 )
 
 type LocationAreas struct {
-	Count    int     `json:"count"`
+	Count    int    `json:"count"`
 	Next     string `json:"next"`
 	Previous string `json:"previous"`
 	Results  []struct {
@@ -19,6 +21,7 @@ type LocationAreas struct {
 type Config struct {
 	Next     string
 	Previous string
+	Cashe    *pokecashe.Cashe
 }
 
 func GetLocationAreas(config *Config, direction string) (LocationAreas, error) {
@@ -37,6 +40,8 @@ func GetLocationAreas(config *Config, direction string) (LocationAreas, error) {
 	if err != nil {
 		return LocationAreas{}, err
 	}
+	cashe := config.Cashe
+	cashe.Add(url, body)
 	locations := LocationAreas{}
 	err = json.Unmarshal(body, &locations)
 	if err != nil {
