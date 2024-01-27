@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"io"
+	"math/rand"
 	"net/http"
 	"net/url"
 
@@ -20,9 +21,10 @@ type LocationAreas struct {
 }
 
 type Config struct {
-	Next     string
-	Previous string
-	Cashe    *pokecashe.Cashe
+	Next           string
+	Previous       string
+	Cashe          *pokecashe.Cashe
+	CaughtPokemons map[string]Pokemon
 }
 
 func GetLocationAreas(config *Config, direction string) (LocationAreas, error) {
@@ -80,4 +82,39 @@ func GetPokemonsInLocation(config *Config, location string) (Pokemons, error) {
 		return Pokemons{}, err
 	}
 	return pokemons, nil
+}
+
+type Pokemon struct {
+	Name string `json:"name"`
+	Exp  int    `json:"base_experience"`
+}
+
+func CatchPokemon(config *Config, pokemonName string) (bool, error) {
+	url := "https://pokeapi.co/api/v2/pokemon/" + url.QueryEscape(pokemonName)
+	res, err := http.Get(url)
+	if err != nil {
+		return false, err
+	}
+	defer res.Body.Close()
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		return false, err
+	}
+	pokemon := Pokemon{}
+	err = json.Unmarshal(body, &pokemon)
+	if err != nil {
+		return false, err
+	}
+	//check if we caught the pokemon
+	exp := pokemon.Exp
+	//calculate probability at random
+	prob := rand.Intn(exp)
+	if prob > 50 {
+		return false, nil
+	}
+	if config.CaughtPokemons == nil {
+		config.CaughtPokemons = make(map[string]Pokemon)
+	}
+	config.CaughtPokemons[pokemonName] = pokemon
+	return true, nil
 }

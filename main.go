@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -47,6 +46,11 @@ func getCommands() map[string]cliCommands {
 			description: "explore the current Location area",
 			callback:    commandExplore,
 		},
+		"catch": {
+			name:        "catch",
+			description: "catch a Pokemon in the current Location area",
+			callback:    commandCatch,
+		},
 	}
 }
 
@@ -66,9 +70,26 @@ func printLocationAreas(config *api.Config, locations api.LocationAreas) {
 	}
 }
 
+func commandCatch(config *api.Config, param string) error {
+	if param == "" {
+		return fmt.Errorf("catch requires a Pokemon name")
+	}
+	fmt.Printf("Throwing a pokeball at %s...\n", param)
+	caught, err := api.CatchPokemon(config, param)
+	if err != nil {
+		return fmt.Errorf("unkown pokemon: %s", param)
+	}
+	if !caught {
+		fmt.Printf("%s escaped!\n", param)
+		return nil
+	}
+	fmt.Printf("%s was caught!\n", param)
+	return nil
+}
+
 func commandExplore(config *api.Config, param string) error {
 	if param == "" {
-		return errors.New("explore requires a Location name")
+		return fmt.Errorf("explore requires a Location name")
 	}
 	fmt.Printf("Exploring %s...\n", param)
 	cashe := config.Cashe
@@ -96,10 +117,10 @@ func commandExplore(config *api.Config, param string) error {
 
 func commandMap(config *api.Config, param string) error {
 	if param != "" {
-		return errors.New("map requires no parameters")
+		return fmt.Errorf("map requires no parameters")
 	}
 	if config.Next == "" {
-		return errors.New("no next location area")
+		return fmt.Errorf("no next location area")
 	}
 	cashe := config.Cashe
 	if data, ok := cashe.Get(config.Next); ok {
@@ -120,10 +141,10 @@ func commandMap(config *api.Config, param string) error {
 }
 func commandMapB(config *api.Config, param string) error {
 	if param != "" {
-		return errors.New("mapb requires no parameters")
+		return fmt.Errorf("mapb requires no parameters")
 	}
 	if config.Previous == "" {
-		return errors.New("no previous location area")
+		return fmt.Errorf("no previous location area")
 	}
 	cashe := config.Cashe
 	if data, ok := cashe.Get(config.Previous); ok {
@@ -145,14 +166,14 @@ func commandMapB(config *api.Config, param string) error {
 
 func commandExit(config *api.Config, param string) error {
 	if param != "" {
-		return errors.New("exit requires no parameters")
+		return fmt.Errorf("exit requires no parameters")
 	}
 	os.Exit(0)
 	return nil
 }
 func commandHelp(config *api.Config, param string) error {
 	if param != "" {
-		return errors.New("help requires no parameters")
+		return fmt.Errorf("help requires no parameters")
 	}
 	fmt.Printf("\nWelcome to the Pokedex!\nUsage:\n\n")
 	for _, command := range getCommands() {
