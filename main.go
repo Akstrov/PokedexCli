@@ -48,10 +48,31 @@ func getCommands() map[string]cliCommands {
 		},
 		"catch": {
 			name:        "catch",
-			description: "catch a Pokemon in the current Location area",
+			description: "catch a Pokemon by name",
 			callback:    commandCatch,
 		},
+		"inspect": {
+			name:        "inspect",
+			description: "inspect a Pokemon by name",
+			callback:    commandInspect,
+		},
+		"pokedex": {
+			name:        "pokedex",
+			description: "displays the Pokedex",
+			callback:    commandPokedex,
+		},
 	}
+}
+
+func commandPokedex(config *api.Config, param string) error {
+	if param != "" {
+		return fmt.Errorf("pokedex requires no parameters")
+	}
+	fmt.Println("Your Pokedex:")
+	for _, pokemon := range config.CaughtPokemons {
+		fmt.Printf(" - %s\n", pokemon.Name)
+	}
+	return nil
 }
 
 func printLocationAreas(config *api.Config, locations api.LocationAreas) {
@@ -70,6 +91,18 @@ func printLocationAreas(config *api.Config, locations api.LocationAreas) {
 	}
 }
 
+func commandInspect(config *api.Config, param string) error {
+	if param == "" {
+		return fmt.Errorf("inspect requires a Pokemon name")
+	}
+	pokemon, ok := config.CaughtPokemons[param]
+	if !ok {
+		return fmt.Errorf("pokemon %s not caught", param)
+	}
+	fmt.Println(pokemon)
+	return nil
+}
+
 func commandCatch(config *api.Config, param string) error {
 	if param == "" {
 		return fmt.Errorf("catch requires a Pokemon name")
@@ -83,7 +116,7 @@ func commandCatch(config *api.Config, param string) error {
 		fmt.Printf("%s escaped!\n", param)
 		return nil
 	}
-	fmt.Printf("%s was caught!\n", param)
+	fmt.Printf("%s was caught!\nYou may now inspect it with the inspect command\n", param)
 	return nil
 }
 

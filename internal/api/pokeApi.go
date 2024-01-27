@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"math/rand"
 	"net/http"
@@ -85,8 +86,33 @@ func GetPokemonsInLocation(config *Config, location string) (Pokemons, error) {
 }
 
 type Pokemon struct {
-	Name string `json:"name"`
-	Exp  int    `json:"base_experience"`
+	Name   string `json:"name"`
+	Height int    `json:"height"`
+	Weight int    `json:"weight"`
+	Stats  []struct {
+		Base_Stat int `json:"base_stat"`
+		Stat      struct {
+			Name string `json:"name"`
+		} `json:"stat"`
+	} `json:"stats"`
+	Types []struct {
+		Type struct {
+			Name string `json:"name"`
+		} `json:"type"`
+	} `json:"types"`
+	Exp int `json:"base_experience"`
+}
+
+func (p Pokemon) String() string {
+	res := fmt.Sprintf("Name: %s\nHeight: %d\nWeight: %d\nStats:\n", p.Name, p.Height, p.Weight)
+	for _, stat := range p.Stats {
+		res += fmt.Sprintf(" - %s: %d\n", stat.Stat.Name, stat.Base_Stat)
+	}
+	res += "Types:\n"
+	for _, typ := range p.Types {
+		res += fmt.Sprintf(" - %s", typ.Type.Name)
+	}
+	return res
 }
 
 func CatchPokemon(config *Config, pokemonName string) (bool, error) {
