@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/Akstrov/PokedexCli/internal/api"
@@ -15,7 +17,7 @@ import (
 type cliCommands struct {
 	name        string
 	description string
-	callback    func(c *api.Config) error
+	callback    func(c *api.Config, param string) error
 }
 
 func getCommands() map[string]cliCommands {
@@ -40,6 +42,11 @@ func getCommands() map[string]cliCommands {
 			description: "displays the previous 20 Location areas",
 			callback:    commandMapB,
 		},
+		"explore": {
+			name:        "explore",
+			description: "explore the current Location area",
+			callback:    commandExplore,
+		},
 	}
 }
 
@@ -59,13 +66,43 @@ func printLocationAreas(config *api.Config, locations api.LocationAreas) {
 	}
 }
 
-func commandMap(config *api.Config) error {
+func commandExplore(config *api.Config, param string) error {
+	if param == "" {
+		return errors.New("explore requires a Location name")
+	}
+	fmt.Printf("Exploring %s...\n", param)
+	cashe := config.Cashe
+	url := "https://pokeapi.co/api/v2/location-area/" + url.QueryEscape(param)
+	if data, ok := cashe.Get(url); ok {
+		pokemons := api.Pokemons{}
+		err := json.Unmarshal(data, &pokemons)
+		if err != nil {
+			return err
+		}
+		for _, pokemon := range pokemons.PokemonEncounters {
+			fmt.Printf(" - %s\n", pokemon.Pokemon.Name)
+		}
+		return nil
+	}
+	pokemons, err := api.GetPokemonsInLocation(config, param)
+	if err != nil {
+		return err
+	}
+	for _, pokemon := range pokemons.PokemonEncounters {
+		fmt.Printf(" - %s\n", pokemon.Pokemon.Name)
+	}
+	return nil
+}
+
+func commandMap(config *api.Config, param string) error {
+	if param != "" {
+		return errors.New("map requires no parameters")
+	}
 	if config.Next == "" {
 		return errors.New("no next location area")
 	}
 	cashe := config.Cashe
 	if data, ok := cashe.Get(config.Next); ok {
-		fmt.Println("wee in")
 		locations := api.LocationAreas{}
 		err := json.Unmarshal(data, &locations)
 		if err != nil {
@@ -81,7 +118,10 @@ func commandMap(config *api.Config) error {
 	printLocationAreas(config, locations)
 	return nil
 }
-func commandMapB(config *api.Config) error {
+func commandMapB(config *api.Config, param string) error {
+	if param != "" {
+		return errors.New("mapb requires no parameters")
+	}
 	if config.Previous == "" {
 		return errors.New("no previous location area")
 	}
@@ -103,11 +143,17 @@ func commandMapB(config *api.Config) error {
 	return nil
 }
 
-func commandExit(config *api.Config) error {
+func commandExit(config *api.Config, param string) error {
+	if param != "" {
+		return errors.New("exit requires no parameters")
+	}
 	os.Exit(0)
 	return nil
 }
-func commandHelp(config *api.Config) error {
+func commandHelp(config *api.Config, param string) error {
+	if param != "" {
+		return errors.New("help requires no parameters")
+	}
 	fmt.Printf("\nWelcome to the Pokedex!\nUsage:\n\n")
 	for _, command := range getCommands() {
 		fmt.Printf("%s: %s\n", command.name, command.description)
@@ -128,9 +174,18 @@ func main() {
 		fmt.Print("pokedex > ")
 		scanner.Scan()
 		input := scanner.Text()
-		value, ok := commands[input]
+		inputs := strings.Split(input, " ")
+		if len(inputs) == 0 {
+			fmt.Println("invalid command")
+			continue
+		}
+		if len(inputs) == 1 {
+			inputs = append(inputs, "")
+		}
+		command := inputs[0]
+		value, ok := commands[command]
 		if ok {
-			err := value.callback(&config)
+			err := value.callback(&config, inputs[1])
 			if err != nil {
 				fmt.Println(err)
 			}
